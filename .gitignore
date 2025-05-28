@@ -2,7 +2,7 @@
 .DS_Store
 
 # Environment
-.env
+
 
 # Node.js
 node_modules/
