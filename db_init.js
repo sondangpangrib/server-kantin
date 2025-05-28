@@ -1,26 +1,25 @@
-// db_init.js
 const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 
 const dbPath = path.join(__dirname, 'database.sqlite');
 
-// Cek apakah file sudah ada
 if (!fs.existsSync(dbPath)) {
   console.log('📦 Membuat database SQLite dan inisialisasi tabel...');
 
   const db = new sqlite3.Database(dbPath);
 
   db.serialize(() => {
-    // Schema
-    db.run(`CREATE TABLE shop (
+    db.run("PRAGMA foreign_keys = ON");
+
+    db.run(`CREATE TABLE IF NOT EXISTS shop (
       id_toko INTEGER PRIMARY KEY AUTOINCREMENT,
       nama_toko TEXT,
       alamat_toko TEXT,
       telp_wa_toko TEXT
-    )`);
+    )`, logError);
 
-    db.run(`CREATE TABLE user (
+    db.run(`CREATE TABLE IF NOT EXISTS user (
       id_user INTEGER PRIMARY KEY AUTOINCREMENT,
       user_nama TEXT,
       user_telp TEXT,
@@ -28,21 +27,21 @@ if (!fs.existsSync(dbPath)) {
       id_toko INTEGER,
       user_tipe INTEGER DEFAULT 0,
       FOREIGN KEY (id_toko) REFERENCES shop(id_toko)
-    )`);
+    )`, logError);
 
-    db.run(`CREATE TABLE produk (
+    db.run(`CREATE TABLE IF NOT EXISTS produk (
       id_produk INTEGER PRIMARY KEY AUTOINCREMENT,
       nama_produk TEXT,
       harga REAL,
       foto_produk TEXT
-    )`);
+    )`, logError);
 
-    db.run(`CREATE TABLE pembeli_group (
+    db.run(`CREATE TABLE IF NOT EXISTS pembeli_group (
       id_group_pembeli INTEGER PRIMARY KEY AUTOINCREMENT,
       nama_group TEXT
-    )`);
+    )`, logError);
 
-    db.run(`CREATE TABLE pembeli (
+    db.run(`CREATE TABLE IF NOT EXISTS pembeli (
       id_pembeli INTEGER PRIMARY KEY AUTOINCREMENT,
       pembeli_nama TEXT,
       pembeli_no_telp TEXT,
@@ -50,9 +49,9 @@ if (!fs.existsSync(dbPath)) {
       pembeli_status INTEGER DEFAULT 0,
       id_group_pembeli INTEGER,
       FOREIGN KEY (id_group_pembeli) REFERENCES pembeli_group(id_group_pembeli)
-    )`);
+    )`, logError);
 
-    db.run(`CREATE TABLE penjualan (
+    db.run(`CREATE TABLE IF NOT EXISTS penjualan (
       id_penjualan INTEGER PRIMARY KEY AUTOINCREMENT,
       id_transaksi TEXT UNIQUE,
       tanggal_transaksi TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -66,9 +65,9 @@ if (!fs.existsSync(dbPath)) {
       status_transaksi INTEGER DEFAULT 0,
       FOREIGN KEY (id_pembeli) REFERENCES pembeli(id_pembeli),
       FOREIGN KEY (id_seles) REFERENCES user(id_user)
-    )`);
+    )`, logError);
 
-    db.run(`CREATE TABLE order_item (
+    db.run(`CREATE TABLE IF NOT EXISTS order_item (
       id_order_item INTEGER PRIMARY KEY AUTOINCREMENT,
       id_penjualan INTEGER,
       id_produk INTEGER,
@@ -76,14 +75,14 @@ if (!fs.existsSync(dbPath)) {
       harga_jual REAL,
       FOREIGN KEY (id_penjualan) REFERENCES penjualan(id_penjualan),
       FOREIGN KEY (id_produk) REFERENCES produk(id_produk)
-    )`);
+    )`, logError);
 
-    db.run(`CREATE TABLE pengeluaran_kategori (
+    db.run(`CREATE TABLE IF NOT EXISTS pengeluaran_kategori (
       idkategori_pengeluaran INTEGER PRIMARY KEY AUTOINCREMENT,
       pengeluaran_nama TEXT
-    )`);
+    )`, logError);
 
-    db.run(`CREATE TABLE pengeluaran (
+    db.run(`CREATE TABLE IF NOT EXISTS pengeluaran (
       id_pengeluaran INTEGER PRIMARY KEY AUTOINCREMENT,
       id_kategory_pengeluaran INTEGER,
       deskripsi_pengeluaran TEXT,
@@ -93,14 +92,14 @@ if (!fs.existsSync(dbPath)) {
       insert_date TEXT DEFAULT CURRENT_TIMESTAMP,
       update_date TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (id_kategory_pengeluaran) REFERENCES pengeluaran_kategori(idkategori_pengeluaran)
-    )`);
+    )`, logError);
 
     // Data awal
-    db.run(`INSERT INTO shop (id_toko, nama_toko, alamat_toko, telp_wa_toko)
-      VALUES (0, 'Kantin Neetas Suni', 'Jalan Ceger Raya', '6282124050350')`);
+    db.run(`INSERT OR IGNORE INTO shop (id_toko, nama_toko, alamat_toko, telp_wa_toko)
+      VALUES (0, 'Kantin Neetas Suni', 'Jalan Ceger Raya', '6282124050350')`, logError);
 
-    db.run(`INSERT INTO user (id_user, user_nama, user_telp, user_password, id_toko, user_tipe)
-      VALUES (0, 'sondang', '6281316777619', '@Rahasiadong1215', 0, 1)`);
+    db.run(`INSERT OR IGNORE INTO user (id_user, user_nama, user_telp, user_password, id_toko, user_tipe)
+      VALUES (0, 'sondang', '6281316777619', '@Rahasiadong1215', 0, 1)`, logError);
 
     console.log('✅ Database berhasil dibuat dan data awal disisipkan.');
   });
@@ -108,4 +107,8 @@ if (!fs.existsSync(dbPath)) {
   db.close();
 } else {
   console.log('✅ Database sudah ada. Tidak perlu inisialisasi ulang.');
+}
+
+function logError(err) {
+  if (err) console.error('❌ SQL error:', err.message);
 }
