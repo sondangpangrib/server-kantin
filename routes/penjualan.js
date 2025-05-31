@@ -8,8 +8,7 @@ const Excel = require('exceljs');
 const PDFDocument = require('pdfkit');
 const db = new sqlite3.Database(path.join(__dirname, '../database.sqlite'));
 const { v4: uuidv4 } = require('uuid');
-
-// GET /penjualan/list/export/pdf
+  
 router.get('/list/export/pdf', (req, res) => {
   const { start, end } = req.query;
   const startDate = start || new Date().toISOString().split('T')[0];
@@ -52,7 +51,11 @@ router.get('/list/export/pdf', (req, res) => {
   });
 });
 
-// GET /penjualan/list/export/excel
+router.get('/tanggal-hari-ini', (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  res.json({ tanggal: today });
+});
+
 router.get('/list/export/excel', (req, res) => {
   const { start, end } = req.query;
   const startDate = start || new Date().toISOString().split('T')[0];
@@ -98,6 +101,54 @@ router.get('/list/export/excel', (req, res) => {
     const filePath = path.join(__dirname, '../exports/laporan_penjualan.xlsx');
     await workbook.xlsx.writeFile(filePath);
     res.download(filePath);
+  });
+});
+
+router.post('/simpan', (req, res) => {
+ const { id_seles,id_pembeli, nama_pembeli, metode_pembayaran, diskon, total_transaksi, status_transaksi, items, id_transaksi } = req.body;
+
+   console.log("Received payload:", req.body); 
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Order tidak boleh kosong!' });
+  }
+  if (metode_pembayaran == 4 && !id_pembeli) {
+    return res.status(400).json({ error: 'Pembayaran hutang harus pilih pembeli!' });
+  }
+  const finalIdTransaksi = id_transaksi || uuidv4();
+
+  db.serialize(() => {
+    const query = `INSERT OR REPLACE INTO penjualan (
+      id_seles, id_transaksi, id_pembeli, nama_pembeli, metode_pembayaran, diskon, total_transaksi, status_transaksi, tanggal_update
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+      
+    db.run(query, [
+      id_seles||null,
+      finalIdTransaksi,
+      id_pembeli || null,
+      nama_pembeli || '',
+      metode_pembayaran,
+      diskon,
+      total_transaksi,
+      status_transaksi
+    ], function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+
+      db.get('SELECT id_penjualan FROM penjualan WHERE id_transaksi = ?', [finalIdTransaksi], (err2, row) => {
+        if (err2) return res.status(500).json({ error: err2.message });
+
+        const id_penjualan = row.id_penjualan;
+        db.run('DELETE FROM order_item WHERE id_penjualan = ?', [id_penjualan], (delErr) => {
+          if (delErr) return res.status(500).json({ error: delErr.message });
+
+          const stmt = db.prepare('INSERT INTO order_item (id_penjualan, id_produk, qty, harga_jual) VALUES (?, ?, ?, ?)');
+                  items.forEach(item => {
+            stmt.run(id_penjualan, item.id_produk, item.qty, item.harga_jual);
+          });
+          stmt.finalize();
+          res.json({ success: true, id_penjualan });
+        });
+      });
+    });
   });
 });
 
