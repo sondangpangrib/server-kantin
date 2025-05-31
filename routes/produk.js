@@ -1,5 +1,4 @@
 // routes/produk.js
-// npm install multer
 const express = require('express');
 const router = express.Router();
 const sqlite3 = require('sqlite3').verbose();
@@ -22,9 +21,24 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// GET all produk
+// GET all produk + relasi ke produk_kategori
 router.get('/', (req, res) => {
-  db.all(`SELECT * FROM produk ORDER BY id_produk DESC`, (err, rows) => {
+  const keyword = req.query.q;
+  let query = `
+    SELECT p.*, k.nama_produk_kategori
+    FROM produk p
+    LEFT JOIN produk_kategori k ON p.id_produk_kategori = k.id_produk_kategori
+  `;
+  const params = [];
+
+  if (keyword) {
+    query += ` WHERE p.nama_produk LIKE ?`;
+    params.push(`%${keyword}%`);
+  }
+
+  query += ` ORDER BY p.id_produk DESC`;
+
+  db.all(query, params, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
@@ -32,14 +46,14 @@ router.get('/', (req, res) => {
 
 // POST create produk
 router.post('/', upload.single('foto_produk'), (req, res) => {
-  const { nama_produk, harga } = req.body;
+  const { nama_produk, harga, id_produk_kategori } = req.body;
   if (!nama_produk || harga == null) {
     return res.status(400).json({ error: 'nama_produk dan harga wajib diisi' });
   }
   const fotoPath = req.file ? `uploads/produk/${req.file.filename}` : '';
   db.run(
-    `INSERT INTO produk (nama_produk, harga, foto_produk) VALUES (?, ?, ?)`,
-    [nama_produk, harga, fotoPath],
+    `INSERT INTO produk (nama_produk, harga, foto_produk, id_produk_kategori) VALUES (?, ?, ?, ?)`,
+    [nama_produk, harga, fotoPath, id_produk_kategori || null],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ id_produk: this.lastID });
@@ -49,11 +63,11 @@ router.post('/', upload.single('foto_produk'), (req, res) => {
 
 // PUT update produk
 router.put('/:id', upload.single('foto_produk'), (req, res) => {
-  const { nama_produk, harga } = req.body;
+  const { nama_produk, harga, id_produk_kategori } = req.body;
   const fotoPath = req.file ? `uploads/produk/${req.file.filename}` : req.body.foto_produk || '';
   db.run(
-    `UPDATE produk SET nama_produk = ?, harga = ?, foto_produk = ? WHERE id_produk = ?`,
-    [nama_produk, harga, fotoPath, req.params.id],
+    `UPDATE produk SET nama_produk = ?, harga = ?, foto_produk = ?, id_produk_kategori = ? WHERE id_produk = ?`,
+    [nama_produk, harga, fotoPath, id_produk_kategori || null, req.params.id],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ updated: this.changes });

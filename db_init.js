@@ -22,6 +22,8 @@ function initDB(dbPath) {
       user_nama TEXT,
       user_telp TEXT,
       user_password TEXT,
+      foto_img_name TEXT,
+      id_group_user NTEGER,
       id_toko INTEGER,
       user_tipe INTEGER DEFAULT 0,
       FOREIGN KEY (id_toko) REFERENCES shop(id_toko)
@@ -31,22 +33,19 @@ function initDB(dbPath) {
       id_produk INTEGER PRIMARY KEY AUTOINCREMENT,
       nama_produk TEXT,
       harga REAL,
+      id_produk_kategori INTEGER,
       foto_produk TEXT
     )`, logError);
 
-    db.run(`CREATE TABLE IF NOT EXISTS pembeli_group (
-      id_group_pembeli INTEGER PRIMARY KEY AUTOINCREMENT,
-      nama_group TEXT
+      db.run(`CREATE TABLE IF NOT EXISTS produk_kategori (
+      id_produk_kategori INTEGER PRIMARY KEY AUTOINCREMENT,
+      nama_produk_kategori TEXT
     )`, logError);
 
-    db.run(`CREATE TABLE IF NOT EXISTS pembeli (
-      id_pembeli INTEGER PRIMARY KEY AUTOINCREMENT,
-      pembeli_nama TEXT,
-      pembeli_no_telp TEXT,
-      pembeli_catatan TEXT,
-      pembeli_status INTEGER DEFAULT 0,
-      id_group_pembeli INTEGER,
-      FOREIGN KEY (id_group_pembeli) REFERENCES pembeli_group(id_group_pembeli)
+    db.run(`CREATE TABLE IF NOT EXISTS user_group (
+      id_group_user INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_tipe INTEGER,
+      nama_group TEXT
     )`, logError);
 
     db.run(`CREATE TABLE IF NOT EXISTS penjualan (
@@ -99,10 +98,40 @@ function initDB(dbPath) {
     db.run(`INSERT OR IGNORE INTO user (id_user, user_nama, user_telp, user_password, id_toko, user_tipe)
       VALUES (0, 'sondang', '6281316777619', '@Rahasiadong1215', 0, 1)`, logError);
 
+    db.run(`INSERT OR IGNORE INTO produk_kategori (id_produk_kategori, nama_produk_kategori)
+      VALUES (0, 'Makanan' )`, logError);
+
+    db.run(`INSERT OR IGNORE INTO produk_kategori (id_produk_kategori, nama_produk_kategori)
+      VALUES (1, 'Minuman' )`, logError);  
+
+    db.run(`INSERT OR IGNORE INTO produk_kategori (id_produk_kategori, nama_produk_kategori)
+      VALUES (2, 'Paket Catering Mingguan')`, logError);  
+
+    db.run(`INSERT OR IGNORE INTO produk_kategori (id_produk_kategori, nama_produk_kategori)
+      VALUES (3, 'Paket Catering Bulanan')`, logError);     
+
+    ensureColumn(db, 'user', 'id_group_user', 'INTEGER');
+    ensureColumn(db, 'user_group', 'user_tipe', 'INTEGER');
+    ensureColumn(db, 'produk', 'id_produk_kategori', 'INTEGER');
+
     console.log('✅ Database berhasil dibuat dan data awal disisipkan.');
   });
 
-  db.close();
+  setTimeout(() => db.close(), 500); // atau 1000 ms untuk amannya. 
+}
+function ensureColumn(db, tableName, columnName, columnDef) {
+  db.all(`PRAGMA table_info(${tableName})`, (err, columns) => {
+    if (err) {
+      console.error(`❌ Gagal mengambil info tabel ${tableName}:`, err.message);
+      return;
+    }
+    const columnExists = columns.some(col => col.name === columnName);
+    if (!columnExists) {
+      const sql = `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDef}`;
+      db.run(sql, logError);
+      console.log(`🆕 Kolom '${columnName}' ditambahkan ke tabel '${tableName}'`);
+    }
+  });
 }
 function logError(err) {
   if (err) {

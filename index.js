@@ -7,7 +7,7 @@ const morgan = require('morgan');
 const dbPath = path.join(__dirname, 'database.sqlite'); // ganti jika nama file beda
 const PORT = process.env.PORT;
 const SERVERIP = process.env.SERVERIP;
-
+const imgRoute = require("./img");
 
 console.log('Server IP:', process.env.SERVERIP);
 console.log('Port:', process.env.PORT);  
@@ -19,7 +19,7 @@ app.use(morgan('dev'));
 
 // Inisialisasi DB jika belum ada
 const initDB = require('./db_init');
-if (!fs.existsSync(dbPath)) {
+if (fs.existsSync(dbPath)) {
   console.log("Database belum ada. Menjalankan inisialisasi...");
   initDB(dbPath);
 }
@@ -33,7 +33,7 @@ fs.readdirSync(routesPath).forEach((file) => {
    console.log(`[DEBUG] Mounting ${file}`);
   app.use(routeName, route);
 });
-
+app.use("/img",imgRoute); 
 // Root endpoint
 app.get('/', (req, res) => {
   res.send('API Kantin aktif');
