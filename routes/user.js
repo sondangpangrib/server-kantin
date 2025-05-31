@@ -8,7 +8,7 @@ const crypto = require('crypto');
 
 const db = new sqlite3.Database(path.join(__dirname, '../database.sqlite'));
 
-const uploadDir = path.join(__dirname, '../uploads/foto');
+const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -40,7 +40,7 @@ router.get('/', (req, res) => {
 // POST create user (support foto + group)
 router.post('/', upload.single('foto'), (req, res) => {
   const { user_nama, user_telp, user_password, id_toko, user_tipe, id_group_user } = req.body;
-  const foto_img_name = req.file ? `uploads/foto/${req.file.filename}` : '';
+  const foto_img_name = req.file ? `${req.file.filename}` : '';
 
   if (!user_nama || !user_telp || !user_password) {
     return res.status(400).json({ error: 'Field wajib tidak lengkap' });
@@ -60,7 +60,7 @@ router.post('/', upload.single('foto'), (req, res) => {
 // PUT update user (support foto + group)
 router.put('/:id', upload.single('foto'), (req, res) => {
   const { user_nama, user_telp, user_password, id_toko, user_tipe, id_group_user } = req.body;
-  const foto_img_name = req.file ? `uploads/foto/${req.file.filename}` : req.body.foto_img_name || '';
+  const foto_img_name = req.file ? `${req.file.filename}` : req.body.foto_img_name || '';
 
   if (req.file) {
     db.get(`SELECT foto_img_name FROM user WHERE id_user = ?`, [req.params.id], (err, row) => {

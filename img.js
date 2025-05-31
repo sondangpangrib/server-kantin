@@ -8,7 +8,7 @@ const appDir = dirname(require.main.filename);
 
 router.get('/:imageName', (req, res, next) => {
     var image = req.params['imageName'];
-    var imagePath = appDir + "/uploads/produk/" + image;
+    var imagePath = appDir + "/uploads/" + image;  
  console.log("imagepath:",imagePath);
     if (req.query.format != null) {
         if (fs.existsSync(imagePath)) {

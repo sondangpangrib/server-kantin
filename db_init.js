@@ -2,8 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 
-const dbPath = path.join(__dirname, 'database.sqlite');
-function initDB(dbPath) {
+function initDB() {
+  const dbPath = path.join(__dirname, 'database.sqlite');
+  console.log('📁 Membuat file di:', dbPath);
   console.log('📦 Membuat database SQLite dan inisialisasi tabel...');
   const db = new sqlite3.Database(dbPath);
   db.serialize(() => {
@@ -14,7 +15,13 @@ function initDB(dbPath) {
       id_toko INTEGER PRIMARY KEY AUTOINCREMENT,
       nama_toko TEXT,
       alamat_toko TEXT,
-      telp_wa_toko TEXT
+      telp_wa_toko TEXT,
+      status INTEGER DEFAULT 0
+    )`, logError);
+
+    db.run(`CREATE TABLE IF NOT EXISTS user_tipe_master (
+      user_tipe INTEGER PRIMARY KEY,
+      nama_tipe TEXT
     )`, logError);
 
     db.run(`CREATE TABLE IF NOT EXISTS user (
@@ -23,9 +30,11 @@ function initDB(dbPath) {
       user_telp TEXT,
       user_password TEXT,
       foto_img_name TEXT,
-      id_group_user NTEGER,
+      id_group_user INTEGER,
       id_toko INTEGER,
-      user_tipe INTEGER DEFAULT 0,
+      user_tipe INTEGER,
+      status INTEGER DEFAULT 0,
+      FOREIGN KEY (user_tipe) REFERENCES user_tipe_master(user_tipe),
       FOREIGN KEY (id_toko) REFERENCES shop(id_toko)
     )`, logError);
 
@@ -34,18 +43,23 @@ function initDB(dbPath) {
       nama_produk TEXT,
       harga REAL,
       id_produk_kategori INTEGER,
-      foto_produk TEXT
+      foto_produk TEXT,
+      status INTEGER DEFAULT 0,
+      FOREIGN KEY (id_produk_kategori) REFERENCES produk_kategori(id_produk_kategori)
     )`, logError);
 
-      db.run(`CREATE TABLE IF NOT EXISTS produk_kategori (
+    db.run(`CREATE TABLE IF NOT EXISTS produk_kategori (
       id_produk_kategori INTEGER PRIMARY KEY AUTOINCREMENT,
-      nama_produk_kategori TEXT
+      nama_produk_kategori TEXT,
+      status INTEGER DEFAULT 0
     )`, logError);
 
     db.run(`CREATE TABLE IF NOT EXISTS user_group (
       id_group_user INTEGER PRIMARY KEY AUTOINCREMENT,
+      nama_group TEXT,
       user_tipe INTEGER,
-      nama_group TEXT
+      status INTEGER DEFAULT 0,
+      FOREIGN KEY (user_tipe) REFERENCES user_tipe_master(user_tipe)
     )`, logError);
 
     db.run(`CREATE TABLE IF NOT EXISTS penjualan (
@@ -60,7 +74,7 @@ function initDB(dbPath) {
       diskon REAL DEFAULT 0,
       total_transaksi REAL DEFAULT 0,
       status_transaksi INTEGER DEFAULT 0,
-      FOREIGN KEY (id_pembeli) REFERENCES pembeli(id_pembeli),
+      FOREIGN KEY (id_pembeli) REFERENCES user(id_user),
       FOREIGN KEY (id_seles) REFERENCES user(id_user)
     )`, logError);
 
@@ -76,7 +90,8 @@ function initDB(dbPath) {
 
     db.run(`CREATE TABLE IF NOT EXISTS pengeluaran_kategori (
       idkategori_pengeluaran INTEGER PRIMARY KEY AUTOINCREMENT,
-      pengeluaran_nama TEXT
+      pengeluaran_nama TEXT,
+      status INTEGER DEFAULT 0
     )`, logError);
 
     db.run(`CREATE TABLE IF NOT EXISTS pengeluaran (
@@ -88,54 +103,48 @@ function initDB(dbPath) {
       tanggal_pengeluaran TEXT,
       insert_date TEXT DEFAULT CURRENT_TIMESTAMP,
       update_date TEXT DEFAULT CURRENT_TIMESTAMP,
+      status INTEGER DEFAULT 0,
       FOREIGN KEY (id_kategory_pengeluaran) REFERENCES pengeluaran_kategori(idkategori_pengeluaran)
     )`, logError);
 
     // Data awal
-    db.run(`INSERT OR IGNORE INTO shop (id_toko, nama_toko, alamat_toko, telp_wa_toko)
-      VALUES (0, 'Kantin Neetas Suni', 'Jalan Ceger Raya', '6282124050350')`, logError);
+    db.run(`INSERT OR IGNORE INTO user_tipe_master (user_tipe, nama_tipe)
+      VALUES (0, 'Superadmin')`, logError);
+    db.run(`INSERT OR IGNORE INTO user_tipe_master (user_tipe, nama_tipe)
+      VALUES (1, 'admin')`, logError);
+    db.run(`INSERT OR IGNORE INTO user_tipe_master (user_tipe, nama_tipe)
+      VALUES (2, 'kasir')`, logError);
+    db.run(`INSERT OR IGNORE INTO user_tipe_master (user_tipe, nama_tipe)
+      VALUES (3, 'Pembeli')`, logError);
 
-    db.run(`INSERT OR IGNORE INTO user (id_user, user_nama, user_telp, user_password, id_toko, user_tipe)
-      VALUES (0, 'sondang', '6281316777619', '@Rahasiadong1215', 0, 1)`, logError);
+    db.run(`INSERT OR IGNORE INTO user_group (id_group_user, nama_group, user_tipe, status)
+      VALUES (0, 'Superadmin Group', 0, 0)`, logError);
 
-    db.run(`INSERT OR IGNORE INTO produk_kategori (id_produk_kategori, nama_produk_kategori)
-      VALUES (0, 'Makanan' )`, logError);
+    db.run(`INSERT OR IGNORE INTO shop (id_toko, nama_toko, alamat_toko, telp_wa_toko, status)
+      VALUES (0, 'Kantin Neetas Suni', 'Jalan Ceger Raya', '6282124050350', 0)`, logError);
 
-    db.run(`INSERT OR IGNORE INTO produk_kategori (id_produk_kategori, nama_produk_kategori)
-      VALUES (1, 'Minuman' )`, logError);  
+    db.run(`INSERT OR IGNORE INTO user (id_user, user_nama, user_telp, user_password, id_toko, user_tipe, status)
+      VALUES (0, 'sondang', '6281316777619', '@Rahasiadong1215', 0, 0, 0)`, logError);
 
-    db.run(`INSERT OR IGNORE INTO produk_kategori (id_produk_kategori, nama_produk_kategori)
-      VALUES (2, 'Paket Catering Mingguan')`, logError);  
-
-    db.run(`INSERT OR IGNORE INTO produk_kategori (id_produk_kategori, nama_produk_kategori)
-      VALUES (3, 'Paket Catering Bulanan')`, logError);     
-
-    ensureColumn(db, 'user', 'id_group_user', 'INTEGER');
-    ensureColumn(db, 'user_group', 'user_tipe', 'INTEGER');
-    ensureColumn(db, 'produk', 'id_produk_kategori', 'INTEGER');
+    db.run(`INSERT OR IGNORE INTO produk_kategori (id_produk_kategori, nama_produk_kategori, status)
+      VALUES (0, 'Makanan', 0)`, logError);
+    db.run(`INSERT OR IGNORE INTO produk_kategori (id_produk_kategori, nama_produk_kategori, status)
+      VALUES (1, 'Minuman', 0)`, logError);
+    db.run(`INSERT OR IGNORE INTO produk_kategori (id_produk_kategori, nama_produk_kategori, status)
+      VALUES (2, 'Paket Catering Mingguan', 0)`, logError);
+    db.run(`INSERT OR IGNORE INTO produk_kategori (id_produk_kategori, nama_produk_kategori, status)
+      VALUES (3, 'Paket Catering Bulanan', 0)`, logError);
 
     console.log('✅ Database berhasil dibuat dan data awal disisipkan.');
   });
 
-  setTimeout(() => db.close(), 500); // atau 1000 ms untuk amannya. 
+  setTimeout(() => db.close(), 500);
 }
-function ensureColumn(db, tableName, columnName, columnDef) {
-  db.all(`PRAGMA table_info(${tableName})`, (err, columns) => {
-    if (err) {
-      console.error(`❌ Gagal mengambil info tabel ${tableName}:`, err.message);
-      return;
-    }
-    const columnExists = columns.some(col => col.name === columnName);
-    if (!columnExists) {
-      const sql = `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDef}`;
-      db.run(sql, logError);
-      console.log(`🆕 Kolom '${columnName}' ditambahkan ke tabel '${tableName}'`);
-    }
-  });
-}
+
 function logError(err) {
   if (err) {
     console.error('❌ SQL error:', err.message);
   }
 }
-module.exports = initDB;  
+
+module.exports = initDB;

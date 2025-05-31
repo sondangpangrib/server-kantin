@@ -8,7 +8,7 @@ const crypto = require('crypto');
 
 const db = new sqlite3.Database(path.join(__dirname, '../database.sqlite'));
 
-const uploadDir = path.join(__dirname, '../uploads/foto');
+const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -21,18 +21,21 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// GET all pembeli
+// GET all pembeli (user_tipe = 3) + nama_group dari user_group
 router.get('/', (req, res) => {
   db.all(`
     SELECT 
-      id_user AS id_pembeli, 
-      user_nama AS pembeli_nama, 
-      user_telp AS pembeli_no_telp,
-      foto_img_name,
-      id_toko
-    FROM user
-    WHERE user_tipe = 3
-    ORDER BY id_user DESC
+      u.id_user AS id_pembeli, 
+      u.user_nama AS pembeli_nama, 
+      u.user_telp AS pembeli_no_telp,
+      u.foto_img_name,
+      u.id_toko,
+      u.id_group_user,
+      g.nama_group
+    FROM user u
+    LEFT JOIN user_group g ON u.id_group_user = g.id_group_user
+    WHERE u.user_tipe = 3
+    ORDER BY u.id_user DESC
   `, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
@@ -41,17 +44,17 @@ router.get('/', (req, res) => {
 
 // POST create pembeli
 router.post('/', upload.single('foto'), (req, res) => {
-  const { user_nama, user_telp, user_password, id_toko } = req.body;
+  const { user_nama, user_telp, user_password, id_toko, id_group_user } = req.body;
   if (!user_nama || !user_telp || !user_password) {
     return res.status(400).json({ error: 'user_nama, user_telp, dan user_password wajib diisi' });
   }
 
-  const foto_img_name = req.file ? `uploads/foto/${req.file.filename}` : '';
+  const foto_img_name = req.file ? `${req.file.filename}` : '';
 
   db.run(
-    `INSERT INTO user (user_nama, user_telp, user_password, foto_img_name, id_toko, user_tipe)
-     VALUES (?, ?, ?, ?, ?, 3)`,
-    [user_nama, user_telp, user_password, foto_img_name, id_toko || 0],
+    `INSERT INTO user (user_nama, user_telp, user_password, foto_img_name, id_toko, user_tipe, id_group_user)
+     VALUES (?, ?, ?, ?, ?, 3, ?)`,
+    [user_nama, user_telp, user_password, foto_img_name, id_toko || 0, id_group_user || null],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ id_pembeli: this.lastID });
@@ -61,14 +64,14 @@ router.post('/', upload.single('foto'), (req, res) => {
 
 // PUT update pembeli
 router.put('/:id', upload.single('foto'), (req, res) => {
-  const { user_nama, user_telp, user_password, id_toko } = req.body;
-  const foto_img_name = req.file ? `uploads/foto/${req.file.filename}` : req.body.foto_img_name || '';
+  const { user_nama, user_telp, user_password, id_toko, id_group_user } = req.body;
+  const foto_img_name = req.file ? `${req.file.filename}` : req.body.foto_img_name || '';
 
   db.run(
     `UPDATE user 
-     SET user_nama = ?, user_telp = ?, user_password = ?, foto_img_name = ?, id_toko = ?
+     SET user_nama = ?, user_telp = ?, user_password = ?, foto_img_name = ?, id_toko = ?, id_group_user = ?
      WHERE id_user = ? AND user_tipe = 3`,
-    [user_nama, user_telp, user_password, foto_img_name, id_toko || 0, req.params.id],
+    [user_nama, user_telp, user_password, foto_img_name, id_toko || 0, id_group_user || null, req.params.id],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ updated: this.changes });

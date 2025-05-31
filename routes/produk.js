@@ -8,7 +8,7 @@ const multer = require('multer');
 const crypto = require('crypto');
 const db = new sqlite3.Database(path.join(__dirname, '../database.sqlite'));
 
-const uploadDir = path.join(__dirname, '../uploads/produk');
+const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -50,7 +50,7 @@ router.post('/', upload.single('foto_produk'), (req, res) => {
   if (!nama_produk || harga == null) {
     return res.status(400).json({ error: 'nama_produk dan harga wajib diisi' });
   }
-  const fotoPath = req.file ? `uploads/produk/${req.file.filename}` : '';
+  const fotoPath = req.file ? `${req.file.filename}` : '';
   db.run(
     `INSERT INTO produk (nama_produk, harga, foto_produk, id_produk_kategori) VALUES (?, ?, ?, ?)`,
     [nama_produk, harga, fotoPath, id_produk_kategori || null],
@@ -64,7 +64,7 @@ router.post('/', upload.single('foto_produk'), (req, res) => {
 // PUT update produk
 router.put('/:id', upload.single('foto_produk'), (req, res) => {
   const { nama_produk, harga, id_produk_kategori } = req.body;
-  const fotoPath = req.file ? `uploads/produk/${req.file.filename}` : req.body.foto_produk || '';
+  const fotoPath = req.file ? `${req.file.filename}` : req.body.foto_produk || '';
   db.run(
     `UPDATE produk SET nama_produk = ?, harga = ?, foto_produk = ?, id_produk_kategori = ? WHERE id_produk = ?`,
     [nama_produk, harga, fotoPath, id_produk_kategori || null, req.params.id],

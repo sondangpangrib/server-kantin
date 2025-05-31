@@ -18,8 +18,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
 // Inisialisasi DB jika belum ada
-const initDB = require('./db_init');
-if (fs.existsSync(dbPath)) {
+const initDB = require('./db_init'); 
+if (!fs.existsSync(dbPath)) { 
   console.log("Database belum ada. Menjalankan inisialisasi...");
   initDB(dbPath);
 }
