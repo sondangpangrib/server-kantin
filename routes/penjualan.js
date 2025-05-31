@@ -8,7 +8,7 @@ const Excel = require('exceljs');
 const PDFDocument = require('pdfkit');
 const db = new sqlite3.Database(path.join(__dirname, '../database.sqlite'));
 const { v4: uuidv4 } = require('uuid');
-  
+   
 router.get('/list/export/pdf', (req, res) => {
   const { start, end } = req.query;
   const startDate = start || new Date().toISOString().split('T')[0];
@@ -148,6 +148,144 @@ router.post('/simpan', (req, res) => {
           res.json({ success: true, id_penjualan });
         });
       });
+    });
+  });
+});
+
+// GET /list - Ambil daftar penjualan (dengan search dan filter tanggal)
+router.get('/list', (req, res) => {
+  const { search = '', dari, sampai } = req.query;
+
+  const conditions = [];
+  const params = [];
+
+  if (search) {
+    conditions.push('(nama_pembeli LIKE ? OR id_transaksi LIKE ?)');
+    params.push(`%${search}%`, `%${search}%`);
+  }
+
+  if (dari && sampai) {
+    conditions.push('DATE(tanggal_transaksi) BETWEEN DATE(?) AND DATE(?)');
+    params.push(dari, sampai);
+  } else {
+    // default: hari ini
+    conditions.push('DATE(tanggal_transaksi) = DATE("now", "localtime")');
+  }
+
+  const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+  const query = `
+    SELECT p.*, u.user_nama AS nama_seles
+    FROM penjualan p
+    LEFT JOIN user u ON p.id_seles = u.id_user
+    ${whereClause}
+    ORDER BY tanggal_transaksi DESC
+  `;
+
+  db.all(query, params, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+router.get('/detail', (req, res) => {
+  const { id_penjualan } = req.query;
+  if (!id_penjualan) return res.status(400).json({ error: 'ID penjualan dibutuhkan' });
+
+  const transaksiQuery = `
+    SELECT p.*, u.user_nama AS nama_seles
+    FROM penjualan p
+    LEFT JOIN user u ON u.id_user = p.id_seles
+    WHERE p.id_penjualan = ?
+  `;
+
+  const itemsQuery = `
+    SELECT o.*, pr.nama_produk, pr.foto_produk AS foto
+    FROM order_item o
+    LEFT JOIN produk pr ON pr.id_produk = o.id_produk
+    WHERE o.id_penjualan = ?
+  `;
+
+  db.get(transaksiQuery, [id_penjualan], (err, transaksi) => {
+    if (err) {
+      console.error('❌ Query transaksi error:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
+
+    if (!transaksi) {
+      console.warn('⚠️ Transaksi tidak ditemukan:', id_penjualan);
+      return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    }
+
+    db.all(itemsQuery, [id_penjualan], (err2, items) => {
+      if (err2) {
+        console.error('❌ Query items error:', err2.message);
+        return res.status(500).json({ error: err2.message });
+      }
+
+      res.json({ transaksi, items });
+    });
+  });
+});
+
+router.get('/nota/pdf', (req, res) => {
+  const { id_penjualan } = req.query;
+  if (!id_penjualan) return res.status(400).json({ error: 'ID transaksi dibutuhkan' });
+
+  const transaksiQuery = `
+    SELECT p.*, u.user_nama AS nama_seles
+    FROM penjualan p
+    LEFT JOIN user u ON u.id_user = p.id_seles
+    WHERE p.id_penjualan = ?
+  `;
+
+  const itemsQuery = `
+    SELECT o.*, pr.nama_produk, pr.foto_img_name AS foto
+    FROM order_item o
+    LEFT JOIN produk pr ON pr.id_produk = o.id_produk
+    WHERE o.id_penjualan = ?
+  `;
+
+  db.get(transaksiQuery, [id_penjualan], (err, trx) => {
+    if (err || !trx) return res.status(500).json({ error: err?.message || 'Transaksi tidak ditemukan' });
+
+    db.all(itemsQuery, [trx.id_penjualan], (err2, items) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+
+      const doc = new PDFDocument({ margin: 40 });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename=nota_${id_penjualan}.pdf`);
+      doc.pipe(res);
+
+      doc.fontSize(16).text('NOTA PENJUALAN', { align: 'center' });
+      doc.moveDown(1);
+
+      doc.fontSize(10);
+      doc.text(`ID Transaksi: ${trx.id_transaksi}`);
+      doc.text(`Tanggal: ${trx.tanggal_transaksi}`);
+      doc.text(`Pembeli: ${trx.nama_pembeli || '-'}`);
+      doc.text(`Kasir: ${trx.nama_seles || '-'}`);
+      doc.text(`Metode: ${trx.metode_pembayaran}`);
+      doc.text(`Status: ${trx.status_transaksi}`);
+      doc.moveDown();
+
+      doc.font('Helvetica-Bold').text('Item:', { underline: true });
+      doc.font('Helvetica');
+      let total = 0;
+
+      items.forEach((item, i) => {
+        const subtotal = item.qty * item.harga_jual;
+        total += subtotal;
+        doc.text(`${i + 1}. ${item.nama_produk} (${item.qty} x Rp${item.harga_jual}) = Rp${subtotal}`);
+      });
+
+      doc.moveDown();
+      doc.text(`Total: Rp${trx.total_transaksi}`, { align: 'right' });
+      doc.text(`Diskon: ${trx.diskon}%`, { align: 'right' });
+      const after = trx.total_transaksi * (1 - trx.diskon / 100);
+      doc.text(`Total Setelah Diskon: Rp${after.toFixed(0)}`, { align: 'right' });
+
+      doc.end();
     });
   });
 });
