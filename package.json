@@ -4,8 +4,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "pm2 index.js",
-    "dev": "pm2-dev index.js"
+    "start": "pm2 index.js --ignore-watch=database.sqlite --ignore-watch=sqliteadmin --ignore-watch=error.log --ignore-watch=sqliteadmin --ignore-watch=uploads",
+    "dev": "nodemon index.js"
   },
   "keywords": [],
   "author": "",

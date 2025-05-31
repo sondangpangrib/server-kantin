@@ -1,0 +1,11 @@
+{
+  "ignore": [
+    "database.sqlite",
+    "uploads",
+    "sqliteadmin",
+    "node_modules",
+    ".env",
+    ".vscode",
+    "*.log"
+  ]
+}

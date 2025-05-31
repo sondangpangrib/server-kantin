@@ -3,13 +3,11 @@ const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 
 const dbPath = path.join(__dirname, 'database.sqlite');
-
-if (!fs.existsSync(dbPath)) {
+function initDB(dbPath) {
   console.log('📦 Membuat database SQLite dan inisialisasi tabel...');
-
   const db = new sqlite3.Database(dbPath);
-
   db.serialize(() => {
+
     db.run("PRAGMA foreign_keys = ON");
 
     db.run(`CREATE TABLE IF NOT EXISTS shop (
@@ -105,10 +103,10 @@ if (!fs.existsSync(dbPath)) {
   });
 
   db.close();
-} else {
-  console.log('✅ Database sudah ada. Tidak perlu inisialisasi ulang.');
 }
-
 function logError(err) {
-  if (err) console.error('❌ SQL error:', err.message);
+  if (err) {
+    console.error('❌ SQL error:', err.message);
+  }
 }
+module.exports = initDB;  
