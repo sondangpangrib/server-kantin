@@ -105,7 +105,7 @@ router.get('/list/export/excel', (req, res) => {
 });
 
 router.post('/simpan', (req, res) => {
- const { id_seles,id_pembeli, nama_pembeli, metode_pembayaran, diskon, total_transaksi, status_transaksi, items, id_transaksi } = req.body;
+ const { id_seles,id_pembeli, nama_pembeli, metode_pembayaran, diskon, total_transaksi, status_transaksi, items, id_transaksi,tanggal_transaksi } = req.body;
 
    console.log("Received payload:", req.body); 
   if (!Array.isArray(items) || items.length === 0) {
@@ -118,8 +118,8 @@ router.post('/simpan', (req, res) => {
 
   db.serialize(() => {
     const query = `INSERT OR REPLACE INTO penjualan (
-      id_seles, id_transaksi, id_pembeli, nama_pembeli, metode_pembayaran, diskon, total_transaksi, status_transaksi, tanggal_update
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+      id_seles, id_transaksi, id_pembeli, nama_pembeli, metode_pembayaran, diskon, total_transaksi, status_transaksi,tanggal_transaksi, tanggal_update
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
       
     db.run(query, [
       id_seles||null,
@@ -129,7 +129,8 @@ router.post('/simpan', (req, res) => {
       metode_pembayaran,
       diskon,
       total_transaksi,
-      status_transaksi
+      status_transaksi,
+      tanggal_transaksi
     ], function (err) {
       if (err) return res.status(500).json({ error: err.message });
 
@@ -236,11 +237,11 @@ router.get('/nota/pdf', (req, res) => {
     SELECT p.*, u.user_nama AS nama_seles
     FROM penjualan p
     LEFT JOIN user u ON u.id_user = p.id_seles
-    WHERE p.id_penjualan = ?
+    WHERE p.id_penjualan = ?  
   `;
 
   const itemsQuery = `
-    SELECT o.*, pr.nama_produk, pr.foto_img_name AS foto
+    SELECT o.*, pr.nama_produk, pr.foto_produk AS foto
     FROM order_item o
     LEFT JOIN produk pr ON pr.id_produk = o.id_produk
     WHERE o.id_penjualan = ?
